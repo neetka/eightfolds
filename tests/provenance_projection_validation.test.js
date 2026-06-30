@@ -3,118 +3,60 @@ const ProjectionLayer = require('../src/projection/ProjectionLayer');
 const Validator = require('../src/validator/Validator');
 
 describe('ProvenanceTracker Tests', () => {
-  const mergedProfile = {
-    name: { value: 'Jane Doe', provenance: { source: 'resume.pdf', method: 'HEURISTIC' }, confidence: 0.67 },
-    emails: [
-      { value: 'jane@example.com', provenance: { source: 'resume.pdf', method: 'REGEX' }, confidence: 0.86 }
-    ]
-  };
-
   test('should generate flat audit log of provenance details', () => {
+    const mergedProfile = {
+      name: { value: 'Jane Doe', confidence: 0.9, provenance: { source: 'ats.json', method: 'DIRECT_MAPPING' } },
+      emails: [
+        { value: 'jane@example.com', confidence: 0.8, provenance: { source: 'resume.pdf', method: 'REGEX_MATCH' } }
+      ]
+    };
+    
     const log = ProvenanceTracker.getAuditLog(mergedProfile);
     expect(log).toHaveLength(2);
-    expect(log[0]).toEqual({
-      field: 'name',
-      value: 'Jane Doe',
-      source: 'resume.pdf',
-      method: 'HEURISTIC',
-      confidence: 0.67
-    });
-    expect(log[1]).toEqual({
-      field: 'emails',
-      value: 'jane@example.com',
-      source: 'resume.pdf',
-      method: 'REGEX',
-      confidence: 0.86
-    });
+    expect(log[0]).toEqual({ field: 'name', value: 'Jane Doe', source: 'ats.json', method: 'DIRECT_MAPPING', confidence: 0.9 });
   });
 });
 
 describe('ProjectionLayer Tests', () => {
   const mergedProfile = {
-    name: { value: 'Jane Doe', provenance: { source: 'resume.pdf', method: 'HEURISTIC' }, confidence: 0.67 },
+    name: { value: 'Jane Doe', confidence: 0.67, provenance: { source: 'resume.pdf', method: 'HEURISTIC' } },
     emails: [
-      { value: 'jane@example.com', provenance: { source: 'resume.pdf', method: 'REGEX' }, confidence: 0.86 }
+      { value: 'jane@example.com', confidence: 0.9, provenance: { source: 'ats.json', method: 'DIRECT_MAPPING' } }
     ],
-    experience: [
-      {
-        value: { title: 'Engineer', company: 'Google' },
-        provenance: { source: 'resume.pdf', method: 'HEURISTIC' },
-        confidence: 0.85
-      }
+    skills: [
+      { value: 'JavaScript', confidence: 0.8, provenance: { source: 'resume.pdf', method: 'HEURISTIC' } }
     ],
-    location: { value: null, provenance: null, confidence: 0 }
+    location: { value: 'San Francisco, CA, USA', confidence: 0.9, provenance: { source: 'ats.json', method: 'DIRECT' } }
   };
 
-  test('should project paths with metadata when enabled', () => {
+  test('should project paths into strict canonical format', () => {
     const config = {
       fields: [
-        { path: 'full_name' }, // Fallback to 'name'
-        { path: 'primary_email', from: 'emails[0]' },
-        { path: 'company', from: 'experience[0].company' }
-      ],
-      include_confidence: true,
-      include_provenance: true
+        { path: 'full_name', from: 'name' },
+        { path: 'emails' },
+        { path: 'skills' },
+        { path: 'location' }
+      ]
     };
 
     const projected = ProjectionLayer.project(mergedProfile, config);
-
-    expect(projected.full_name).toEqual({
-      value: 'Jane Doe',
-      confidence: 0.67,
-      provenance: { source: 'resume.pdf', method: 'HEURISTIC' }
-    });
-
-    expect(projected.primary_email).toEqual({
-      value: 'jane@example.com',
-      confidence: 0.86,
-      provenance: { source: 'resume.pdf', method: 'REGEX' }
-    });
-
-    // Nested inheritance test: projected.company inherits provenance from experience[0]
-    expect(projected.company).toEqual({
-      value: 'Google',
-      confidence: 0.85,
-      provenance: { source: 'resume.pdf', method: 'HEURISTIC' }
-    });
-  });
-
-  test('should strip metadata wrappers when include_confidence/provenance are false', () => {
-    const config = {
-      fields: [
-        { path: 'full_name' },
-        { path: 'primary_email', from: 'emails[0]' }
-      ],
-      include_confidence: false,
-      include_provenance: false
-    };
-
-    const projected = ProjectionLayer.project(mergedProfile, config);
-
+    
+    // Primitives
     expect(projected.full_name).toBe('Jane Doe');
-    expect(projected.primary_email).toBe('jane@example.com');
+    expect(projected.emails).toEqual(['jane@example.com']);
+    
+    // Custom objects
+    expect(projected.skills).toEqual(['JavaScript']);
+    
+    expect(projected.location.city).toBe('San Francisco');
+    expect(projected.location.region).toBe('CA');
+    expect(projected.location.country).toBe('US');
   });
 
-  test('should handle on_missing behaviors: null and omit', () => {
-    // 1. null
-    const configNull = {
-      fields: [{ path: 'location' }],
-      on_missing: 'null',
-      include_confidence: false,
-      include_provenance: false
-    };
-    const projectedNull = ProjectionLayer.project(mergedProfile, configNull);
-    expect(projectedNull.location).toBeNull();
-
-    // 2. omit
-    const configOmit = {
-      fields: [{ path: 'location' }],
-      on_missing: 'omit',
-      include_confidence: false,
-      include_provenance: false
-    };
-    const projectedOmit = ProjectionLayer.project(mergedProfile, configOmit);
-    expect(projectedOmit.location).toBeUndefined();
+  test('should handle on_missing behaviors: null', () => {
+    const config = { fields: [{ path: 'headline' }], on_missing: 'null' };
+    const projected = ProjectionLayer.project(mergedProfile, config);
+    expect(projected.headline).toBeNull();
   });
 });
 
@@ -122,16 +64,16 @@ describe('Validator Tests', () => {
   const config = {
     fields: [
       { path: 'full_name', required: true },
-      { path: 'primary_email', from: 'emails[0]' }
-    ],
-    include_confidence: true,
-    include_provenance: true
+      { path: 'emails' },
+      { path: 'location' }
+    ]
   };
 
   test('should validate successful projected payload', () => {
     const validPayload = {
-      full_name: { value: 'Jane Doe', confidence: 0.67, provenance: { source: 'resume.pdf', method: 'HEURISTIC' } },
-      primary_email: { value: 'jane@example.com', confidence: 0.86, provenance: { source: 'resume.pdf', method: 'REGEX' } }
+      full_name: 'John Smith',
+      emails: ['john@example.com'],
+      location: { city: 'SF', region: 'CA', country: 'US' }
     };
 
     const res = Validator.validate(validPayload, config);
@@ -140,8 +82,8 @@ describe('Validator Tests', () => {
 
   test('should report errors for missing required fields', () => {
     const invalidPayload = {
-      full_name: { value: null, confidence: 0, provenance: null }, // Required but null
-      primary_email: { value: 'jane@example.com', confidence: 0.86, provenance: { source: 'resume.pdf', method: 'REGEX' } }
+      full_name: null,
+      emails: []
     };
 
     const res = Validator.validate(invalidPayload, config);

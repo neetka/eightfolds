@@ -25,13 +25,18 @@ class AtsJsonExtractor extends BaseExtractor {
       skills = rawData.skills.split(',').map(s => s.trim());
     }
 
-    // Links (normalize to flat string array)
+    // Capture github and linkedin as links if they exist at root of ATS JSON
     let links = [];
+    if (rawData.github) links.push(rawData.github);
+    if (rawData.linkedin) links.push(rawData.linkedin);
+
     if (Array.isArray(rawData.links)) {
-      links = rawData.links;
+      links = [...links, ...rawData.links];
     } else if (typeof rawData.links === 'string') {
-      links = rawData.links.split(',').map(l => l.trim());
+      links = [...links, ...rawData.links.split(',').map(l => l.trim())];
     }
+
+    const headline = rawData.headline || '';
 
     // Experience mapping
     let experience = [];
@@ -64,7 +69,8 @@ class AtsJsonExtractor extends BaseExtractor {
       experience: experience.filter(exp => exp.title || exp.company),
       education: education.filter(edu => edu.degree || edu.school),
       location: typeof location === 'object' ? JSON.stringify(location) : String(location).trim(),
-      links: links.filter(l => typeof l === 'string' && l.length > 0)
+      links: links.filter(l => typeof l === 'string' && l.length > 0),
+      headline: typeof headline === 'string' ? headline.trim() : ''
     };
   }
 
@@ -77,7 +83,8 @@ class AtsJsonExtractor extends BaseExtractor {
       experience: [],
       education: [],
       location: '',
-      links: []
+      links: [],
+      headline: ''
     };
   }
 }

@@ -1,14 +1,11 @@
 {
   "fields": [
-    { "path": "full_name", "required": true },
-    { "path": "primary_email", "from": "emails[0]" },
-    { "path": "primary_phone", "from": "phones[0]" },
+    { "path": "full_name", "from": "name", "required": true },
+    { "path": "emails" },
+    { "path": "phones" },
     { "path": "skills" },
-    { "path": "experience" },
-    { "path": "education" },
-    { "path": "location" },
-    { "path": "country" },
-    { "path": "links" }
+    { "path": "headline" },
+    { "path": "github" }
   ],
   "include_confidence": true,
   "include_provenance": true,

@@ -31,6 +31,7 @@ class Merger {
       name: this._mergeSingleField(richProfiles, 'name'),
       location: this._mergeSingleField(richProfiles, 'location'),
       country: this._mergeSingleField(richProfiles, 'country'),
+      headline: this._mergeSingleField(richProfiles, 'headline'),
       emails: this._mergeArrayField(richProfiles, 'emails', (a, b) => a.toLowerCase() === b.toLowerCase()),
       phones: this._mergeArrayField(richProfiles, 'phones', (a, b) => a.replace(/\D/g, '') === b.replace(/\D/g, '')),
       links: this._mergeArrayField(richProfiles, 'links', (a, b) => {
@@ -44,7 +45,7 @@ class Merger {
 
     // Calculate overall candidate confidence score
     const allFieldMetadata = [];
-    const singleFields = ['name', 'location', 'country'];
+    const singleFields = ['name', 'location', 'country', 'headline'];
     
     singleFields.forEach(f => {
       if (merged[f] && merged[f].value) {

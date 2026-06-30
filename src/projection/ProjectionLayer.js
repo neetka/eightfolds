@@ -1,3 +1,5 @@
+const { normalizeCountry } = require('../normalizers/Normalizer');
+
 class ProjectionLayer {
   /**
    * Project the canonical merged profile according to the provided config.
@@ -10,7 +12,7 @@ class ProjectionLayer {
       throw new Error('Valid configuration object is required for projection.');
     }
 
-    const { fields = [], include_confidence = true, include_provenance = true, on_missing = 'null' } = config;
+    const { fields = [], on_missing = 'null' } = config;
     const projected = {};
 
     for (const fieldSpec of fields) {
@@ -34,8 +36,7 @@ class ProjectionLayer {
           if (on_missing === 'throw') {
             throw new Error(`Required field "${targetKey}" (from "${sourceSelector}") is missing.`);
           }
-          // Otherwise, we map it to null or empty for now and let the validator catch it
-          projected[targetKey] = this._formatField({ value: null }, include_confidence, include_provenance);
+          projected[targetKey] = null;
           continue;
         }
 
@@ -43,21 +44,17 @@ class ProjectionLayer {
           continue;
         }
 
-        projected[targetKey] = this._formatField({ value: null }, include_confidence, include_provenance);
+        projected[targetKey] = null;
         continue;
       }
 
-      // Format field with confidence/provenance depending on config
-      projected[targetKey] = this._formatField(richField, include_confidence, include_provenance);
+      // Format field to exact schema requirements
+      projected[targetKey] = this._formatField(targetKey, richField);
     }
 
     return projected;
   }
 
-  /**
-   * Evaluates path selectors (e.g. "emails[0]", "experience[0].company") on the merged profile.
-   * Properly resolves nested structures and inherits parent metadata if accessing subfields.
-   */
   static _resolveSelector(obj, selector) {
     if (!obj || !selector) return null;
 
@@ -75,7 +72,7 @@ class ProjectionLayer {
 
       // Step into value if currently at a metadata wrapper
       if (current.hasOwnProperty('value') && !current.hasOwnProperty(part)) {
-        lastMetadata = current; // Retain parent metadata wrapper (for provenance inheritance)
+        lastMetadata = current; // Retain parent metadata wrapper
         current = current.value;
       }
 
@@ -91,15 +88,14 @@ class ProjectionLayer {
       return current;
     }
 
-    // If the leaf is inside a list of metadata wrappers (e.g. we mapped skills array)
+    // If the leaf is inside a list of metadata wrappers
     if (Array.isArray(current) && current.length > 0 && current[0].hasOwnProperty('value')) {
       return {
-        value: current, // Return array of rich objects
+        value: current,
         isWrappedArray: true
       };
     }
 
-    // If we traversed through a metadata wrapper (e.g. experience[0].company), inherit its provenance
     if (lastMetadata) {
       return {
         value: current,
@@ -108,7 +104,6 @@ class ProjectionLayer {
       };
     }
 
-    // Otherwise, return it wrapped in default metadata
     return {
       value: current,
       provenance: null,
@@ -116,64 +111,78 @@ class ProjectionLayer {
     };
   }
 
-  /**
-   * Formats the output field depending on config settings.
-   */
-  static _formatField(richField, includeConfidence, includeProvenance) {
-    // If it's an array of rich fields (like skills, emails, etc.)
-    if (richField.isWrappedArray || Array.isArray(richField.value)) {
-      const arr = richField.isWrappedArray ? richField.value : richField;
-      
-      // If no metadata requested, return flat primitive list
-      if (!includeConfidence && !includeProvenance) {
-        return arr.map(item => item.value);
-      }
-
-      // Otherwise format each item in the array
-      return arr.map(item => {
-        const formatted = { value: item.value };
-        if (includeConfidence) formatted.confidence = item.confidence;
-        if (includeProvenance && item.provenance) {
-          formatted.provenance = {
-            source: item.provenance.source,
-            method: item.provenance.method
-          };
-        }
-        return formatted;
-      });
-    }
-
-    // If metadata is disabled, return flat value
-    if (!includeConfidence && !includeProvenance) {
-      return richField.value;
-    }
-
-    // Format single field
-    const formatted = { value: richField.value };
-    if (includeConfidence) {
-      formatted.confidence = richField.confidence !== undefined ? richField.confidence : 0;
-    }
-    if (includeProvenance) {
-      formatted.provenance = richField.provenance
-        ? { source: richField.provenance.source, method: richField.provenance.method }
-        : null;
-    }
-
-    return formatted;
-  }
-
-  /**
-   * Maps common field names when an explicit "from" selector is missing.
-   */
   static _getFallbackSelector(key) {
     const aliases = {
-      full_name: 'name',
-      fullName: 'name',
-      primary_email: 'emails[0]',
-      primary_phone: 'phones[0]',
-      primary_link: 'links[0]'
+      github: 'links'
     };
     return aliases[key] || key;
+  }
+
+  static _formatField(targetKey, richField) {
+    const isArray = richField.isWrappedArray || Array.isArray(richField.value);
+    const arr = isArray ? (richField.isWrappedArray ? richField.value : richField) : [];
+
+    switch (targetKey) {
+      case 'skills':
+        return arr.map(item => item.value);
+      case 'github': {
+        const githubLink = arr.find(item => item.value && item.value.toLowerCase().includes('github.com'));
+        return githubLink ? githubLink.value : null;
+      }
+      case 'experience':
+        return arr.map(item => ({
+          company: item.value.company || '',
+          title: item.value.title || '',
+          start: item.value.startDate || '',
+          end: item.value.endDate || '',
+          summary: item.value.description || ''
+        }));
+      case 'education':
+        return arr.map(item => ({
+          institution: item.value.school || '',
+          degree: item.value.degree || '',
+          field: item.value.field || '',
+          end_year: item.value.endDate ? String(item.value.endDate).substring(0, 4) : ''
+        }));
+      case 'links': {
+        const result = { linkedin: null, github: null, portfolio: null, other: [] };
+        for (const item of arr) {
+          const l = item.value;
+          const lower = l.toLowerCase();
+          if (lower.includes('linkedin.com')) result.linkedin = l;
+          else if (lower.includes('github.com')) result.github = l;
+          else if (lower.includes('portfolio') || lower.includes('personal')) result.portfolio = l;
+          else result.other.push(l);
+        }
+        return result;
+      }
+      case 'location': {
+        const val = String(richField.value || '');
+        const parts = val.split(',').map(p => p.trim());
+        const countryIso = normalizeCountry(val) || '';
+        
+        let city = parts.length > 0 ? parts[0] : '';
+        let region = parts.length > 1 ? parts[1] : '';
+        
+        // Simple heuristic fix for parsing "Region, Country" without a city
+        if (parts.length === 2 && countryIso) {
+           city = '';
+           region = parts[0];
+        }
+
+        return {
+          city,
+          region,
+          country: countryIso
+        };
+      }
+      case 'emails':
+      case 'phones':
+        return arr.map(item => item.value);
+      default:
+        // For primitive strings like full_name, candidate_id, headline, years_experience
+        return richField.value;
+    }
   }
 }
 

@@ -4,6 +4,9 @@ const candidateRoutes = require('./src/routes/candidate');
 
 const app = express();
 
+// Pretty-print JSON responses
+app.set('json spaces', 2);
+
 // Global Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

@@ -64,24 +64,23 @@ describe('API Integration Tests', () => {
         .attach('files', Buffer.from(mockResume), 'resume.txt')
         .attach('files', Buffer.from(mockAtsJson), 'ats.json');
 
+      if (res.statusCode !== 200) console.log(res.body.errors);
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.full_name.value).toBe('Alice Smith');
-      expect(res.body.data.primary_email.value).toBe('alice.smith@example.com');
+      expect(res.body.data.full_name).toBe('Alice Smith');
+      expect(res.body.data.emails).toContain('alice.smith@example.com');
       
       // Skills union test (JavaScript, Node.js, React)
-      const skills = res.body.data.skills.map(s => s.value);
+      const skills = res.body.data.skills;
       expect(skills).toContain('JavaScript');
       expect(skills).toContain('Node.js');
       expect(skills).toContain('React');
       
-      // Education and Experience merged E2E
-      expect(res.body.data.experience[0].value.company).toBe('Amazon');
-      expect(res.body.data.education[0].value.school).toBe('MIT');
+      // Root github check
+      expect(res.body.data.github).toBe('http://github.com/alicesmith');
 
-      // Provenance structure check
-      expect(res.body.provenance_audit).toBeDefined();
-      expect(res.body.provenance_audit.length).toBeGreaterThan(0);
+      // Provenance check (removed from final candidate output)
+      expect(res.body.data.provenance).toBeUndefined();
     });
 
     test('should fail validation and return 422 if required fields are missing', async () => {

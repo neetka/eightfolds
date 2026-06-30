@@ -229,7 +229,8 @@ function normalizeCandidate(candidate) {
     education: normalizedEducation,
     location: candidate.location ? String(candidate.location).trim() : '',
     country: country || undefined, // Add separate ISO field if resolved
-    links: normalizedLinks
+    links: normalizedLinks,
+    headline: candidate.headline ? String(candidate.headline).trim() : ''
   };
 }
 

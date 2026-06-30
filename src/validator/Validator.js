@@ -2,7 +2,7 @@ const { z } = require('zod');
 
 class Validator {
   /**
-   * Dynamically build a Zod schema based on the projection config specifications.
+   * Dynamically build a Zod schema based on the flat structure config specifications.
    * @param {Object} config - Configuration spec object.
    * @returns {z.ZodObject} Constructed Zod schema.
    */
@@ -11,17 +11,65 @@ class Validator {
       throw new Error('Invalid validation config: missing fields specification.');
     }
 
-    const { fields, include_confidence = true, include_provenance = true } = config;
+    const { fields } = config;
     const schemaShape = {};
 
     for (const field of fields) {
       const fieldKey = field.path;
       const isRequired = field.required === true;
 
-      // Schema for the actual value leaf
-      let valueSchema = z.any();
+      // Base validation matching canonical type definitions
+      let baseSchema;
+      switch (fieldKey) {
+        case 'emails':
+        case 'phones':
+        case 'skills':
+          baseSchema = z.array(z.string());
+          break;
+        case 'experience':
+          baseSchema = z.array(z.object({
+            company: z.string(),
+            title: z.string(),
+            start: z.string(),
+            end: z.string(),
+            summary: z.string()
+          }));
+          break;
+        case 'education':
+          baseSchema = z.array(z.object({
+            institution: z.string(),
+            degree: z.string(),
+            field: z.string(),
+            end_year: z.string()
+          }));
+          break;
+        case 'location':
+          baseSchema = z.object({
+            city: z.string(),
+            region: z.string(),
+            country: z.string()
+          });
+          break;
+        case 'links':
+          baseSchema = z.object({
+            linkedin: z.string().nullable(),
+            github: z.string().nullable(),
+            portfolio: z.string().nullable(),
+            other: z.array(z.string())
+          });
+          break;
+        case 'years_experience':
+          baseSchema = z.number().nullable();
+          break;
+        default:
+          // strings for full_name, candidate_id, headline
+          baseSchema = z.string().nullable();
+          break;
+      }
+
       if (isRequired) {
-        valueSchema = z.any().refine(
+        // Refine for empty string or empty array if required
+        schemaShape[fieldKey] = z.any().refine(
           val => {
             if (val === undefined || val === null || val === '') return false;
             if (Array.isArray(val) && val.length === 0) return false;
@@ -30,36 +78,7 @@ class Validator {
           { message: `Required field "${fieldKey}" is empty or missing.` }
         );
       } else {
-        valueSchema = z.any().nullable().optional();
-      }
-
-      // If output includes metadata wrappers, build object schema
-      if (include_confidence || include_provenance) {
-        const metadataObjectShape = {
-          value: valueSchema
-        };
-
-        if (include_confidence) {
-          metadataObjectShape.confidence = z.number().min(0).max(1).nullable().optional();
-        }
-
-        if (include_provenance) {
-          metadataObjectShape.provenance = z.object({
-            source: z.string(),
-            method: z.string()
-          }).nullable().optional();
-        }
-
-        // If the field is an array (like skills, experience), it might output a list of wrapped items
-        // To handle this, we check if the path contains array keywords, but since it is dynamically mapped
-        // we can allow the schema to accept either the metadata object or an array of metadata objects.
-        schemaShape[fieldKey] = z.union([
-          z.object(metadataObjectShape),
-          z.array(z.object(metadataObjectShape))
-        ]);
-      } else {
-        // If metadata is excluded, it's just the raw value directly
-        schemaShape[fieldKey] = valueSchema;
+        schemaShape[fieldKey] = z.union([baseSchema, z.null()]).optional();
       }
     }
 
@@ -67,38 +86,23 @@ class Validator {
   }
 
   /**
-   * Validates projected JSON against the dynamic Zod schema.
-   * @param {Object} projectedJson - Projected JSON output.
-   * @param {Object} config - Projection config.
-   * @returns {{ success: boolean, data?: any, errors?: Array<string> }} Result status.
+   * Validate projected data payload.
    */
-  static validate(projectedJson, config) {
+  static validate(projectedData, config) {
     try {
       const schema = this.buildSchema(config);
-      const result = schema.safeParse(projectedJson);
+      const result = schema.safeParse(projectedData);
 
       if (result.success) {
-        return {
-          success: true,
-          data: result.data
-        };
+        return { success: true, data: result.data };
       }
 
-      // Format and return Zod errors cleanly instead of crashing
-      const errors = result.error.errors.map(err => {
-        const pathStr = err.path.join('.');
-        return `${pathStr ? pathStr + ': ' : ''}${err.message}`;
-      });
-
-      return {
-        success: false,
-        errors
-      };
-    } catch (err) {
-      return {
-        success: false,
-        errors: [err.message]
-      };
+      const formattedErrors = result.error.errors.map(
+        err => `${err.path.join('.')}: ${err.message}`
+      );
+      return { success: false, errors: formattedErrors };
+    } catch (e) {
+      return { success: false, errors: [e.message] };
     }
   }
 }

@@ -14,7 +14,7 @@ class CandidateController {
         });
       }
 
-      // Parse custom configuration if supplied, otherwise load a standard default schema configuration
+      // Parse custom configuration if supplied, otherwise load standard default schema configuration
       let config;
       if (req.body.config) {
         try {
@@ -26,23 +26,7 @@ class CandidateController {
           });
         }
       } else {
-        // Standard default candidate schema projection
-        config = {
-          fields: [
-            { path: 'full_name', required: true },
-            { path: 'primary_email', from: 'emails[0]' },
-            { path: 'primary_phone', from: 'phones[0]' },
-            { path: 'skills' },
-            { path: 'experience' },
-            { path: 'education' },
-            { path: 'location' },
-            { path: 'country' },
-            { path: 'links' }
-          ],
-          include_confidence: true,
-          include_provenance: true,
-          on_missing: 'null'
-        };
+        config = require('../../config.json');
       }
 
       // Format Multer files (using memoryStorage) for service ingestion

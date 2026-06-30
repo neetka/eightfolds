@@ -71,23 +71,33 @@ class CandidateTransformerService {
       // 4. Projection Phase: Shape output JSON format
       const projected = ProjectionLayer.project(mergedProfile, projectionConfig);
 
-      // 5. Validation Phase: Dynamic schema validation using Zod
+      // Compute overall confidence
+      const overallConfidence = auditLog.length > 0 
+        ? Number((auditLog.reduce((acc, log) => acc + log.confidence, 0) / auditLog.length).toFixed(2))
+        : 0;
+
+      // Construct exact output shape
+      const finalData = {
+        ...projected,
+        overall_confidence: overallConfidence
+      };
+
+      // 5. Validation Phase: Dynamic schema validation using Zod (validates the projected fields)
       const validationResult = Validator.validate(projected, projectionConfig);
 
       if (!validationResult.success) {
         return {
           success: false,
           errors: [...errors, ...validationResult.errors],
-          data: projected, // Return projected data so the client can inspect it
-          auditLog
+          data: finalData
         };
       }
 
       // Success
       return {
         success: true,
-        data: validationResult.data,
-        auditLog,
+        data: finalData,
+        provenance: auditLog.map(log => ({ field: log.field, source: log.source, method: log.method })),
         errors: errors.length > 0 ? errors : undefined
       };
 

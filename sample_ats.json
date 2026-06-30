@@ -1,0 +1,68 @@
+{
+  "candidate_id": "ATS-2026-001547",
+  "full_name": "NeetKa",
+  "email": "atterneetka@gmail.com",
+  "alternate_email": "neetka.work@gmail.com",
+  "phone": "7009713068",
+  "headline": "Software Engineer Intern",
+  "current_company": "Eniac World Media Pvt Ltd",
+  "location": "Punjab, India",
+  "github": "https://github.com/neetka",
+  "linkedin": "https://linkedin.com/in/neetka05",
+  "skills": [
+    "Node",
+    "ExpressJS",
+    "React",
+    "Mongo",
+    "Javascript",
+    "Docker",
+    "AWS",
+    "Redis",
+    "SQL",
+    "Communication"
+  ],
+  "education": [
+    {
+      "institution": "Lovely Professional University",
+      "degree": "B.Tech CSE",
+      "cgpa": 8.9,
+      "start": "2023",
+      "end": "2027"
+    }
+  ],
+  "experience": [
+    {
+      "company": "Eniac World Media Pvt. Ltd.",
+      "designation": "Frontend Developer Intern",
+      "start_date": "2026-02",
+      "end_date": "2026-04",
+      "skills_used": [
+        "React",
+        "JavaScript",
+        "REST APIs"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Aura AI",
+      "tech_stack": [
+        "NextJS",
+        "Node",
+        "Gemini API"
+      ]
+    },
+    {
+      "name": "Yapp",
+      "tech_stack": [
+        "React",
+        "Node",
+        "MongoDB",
+        "Socket.io"
+      ]
+    }
+  ],
+  "preferred_role": "Backend Developer",
+  "availability": "Immediate",
+  "last_updated": "2026-05-18"
+}

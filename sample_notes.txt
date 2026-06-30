@@ -1,0 +1,8 @@
+Candidate: John Doe
+johndoe@example.com | 415-555-0198
+github.com/johndoe
+Location: San Francisco, CA, USA
+
+Skills: Node.js, Express, React, TypeScript
+
+Notes: Discussed candidate. He worked at Google as a Senior Engineer from 2020-01 to Present.
