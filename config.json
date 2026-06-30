@@ -1,0 +1,16 @@
+{
+  "fields": [
+    { "path": "full_name", "required": true },
+    { "path": "primary_email", "from": "emails[0]" },
+    { "path": "primary_phone", "from": "phones[0]" },
+    { "path": "skills" },
+    { "path": "experience" },
+    { "path": "education" },
+    { "path": "location" },
+    { "path": "country" },
+    { "path": "links" }
+  ],
+  "include_confidence": true,
+  "include_provenance": true,
+  "on_missing": "null"
+}

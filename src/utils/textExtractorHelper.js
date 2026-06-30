@@ -152,7 +152,7 @@ function extractNameFromNotes(text) {
 
   const namePatterns = [
     /(?:candidate|name|discussed with|profile of)\s*:\s*([A-Za-z \t]{2,30})/i,
-    /(?:candidate|name|discussed with|profile of)\s+([A-Za-z \t]{2,30})/i
+    /(?:discussed with|profile of)\s+([A-Za-z \t]{2,30})/i
   ];
 
   for (const pattern of namePatterns) {
