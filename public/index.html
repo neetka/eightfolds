@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eightfolds Candidate Transformer</title>
+  <meta name="description" content="AI-powered candidate ETL and formatting interface.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <h1>Candidate Transformer</h1>
+      <p>Drag and drop Resumes, ATS exports, or Recruiter Notes to build a canonical candidate profile.</p>
+    </header>
+
+    <main class="app-main">
+      <!-- Upload Section -->
+      <section class="upload-section">
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-zone-content">
+            <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            <p>Drag & Drop files here</p>
+            <span class="or-text">or</span>
+            <button id="browse-btn" class="btn-primary">Browse Files</button>
+            <input type="file" id="file-input" multiple accept=".pdf,.txt,.csv,.json" hidden>
+          </div>
+        </div>
+        
+        <div class="file-list-container">
+          <h3>Selected Files</h3>
+          <ul id="file-list" class="file-list">
+            <li class="empty-state">No files selected yet.</li>
+          </ul>
+        </div>
+        
+        <button id="process-btn" class="btn-process" disabled>Transform Data</button>
+      </section>
+
+      <!-- Results Section -->
+      <section class="results-section">
+        <div class="results-header">
+          <h2>Transformed Output</h2>
+          <div class="status-indicator" id="status-indicator">Awaiting Input</div>
+        </div>
+        <div class="code-container">
+          <pre><code id="json-output">// Unified Candidate JSON will appear here...</code></pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

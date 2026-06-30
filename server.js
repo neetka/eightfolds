@@ -4,12 +4,17 @@ const candidateRoutes = require('./src/routes/candidate');
 
 const app = express();
 
+const path = require('path');
+
 // Pretty-print JSON responses
 app.set('json spaces', 2);
 
 // Global Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static frontend UI
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {
