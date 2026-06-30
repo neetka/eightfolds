@@ -1,6 +1,14 @@
 # Multi-Source Candidate Data Transformer
 
-A production-grade, modular Node.js ETL pipeline that ingests candidate data from multiple structured (CSV, JSON) and unstructured (PDF Resumes, TXT Recruiter Notes) sources, merges duplicate information using a deterministic priority hierarchy, assigns field-level confidence scores, tracks data provenance, and outputs a runtime-configurable projected JSON validated with Zod.
+A production-grade, modular Node.js ETL pipeline that ingests candidate data from multiple structured (CSV, JSON) and unstructured (PDF Resumes, TXT Recruiter Notes) sources, merges duplicate information using a deterministic priority hierarchy, assigns field-level confidence scores, tracks data provenance, and outputs a strictly flattened JSON profile validated with Zod.
+
+## Premium Web Interface
+This project now includes a stunning, premium dark-mode web UI! Instead of interacting purely through CLI or Postman, you can navigate to `http://localhost:3000` to utilize a sleek drag-and-drop zone to intuitively combine your candidate files.
+
+Features include:
+- Glassmorphism design and micro-animations.
+- Automatic `FormData` building for REST API consumption.
+- Client-side JSON syntax highlighting for immediate visual verification.
 
 ---
 
@@ -28,10 +36,8 @@ This system is built following **Clean Architecture** and **SOLID principles**. 
   - *Deduplication*: Collapses matching emails/phones/skills. Deduplicates experience and education by cleaning titles and stripping corporate suffixes (such as "Inc.", "Corp.", "Ltd.").
 - **Confidence Engine (`src/confidence/`)**: Computes scores using:
   `Field Confidence = Source Weight * Method Weight`
-  - Floating-point calculations are corrected against binary precision rounding limits using `Number.EPSILON`.
-- **Provenance Tracking (`src/provenance/`)**: Attaches an audit log to each value indicating its file source, extraction method, and confidence score.
-- **Projection (`src/projection/`)**: Evaluates config-driven path selectors (e.g. `emails[0]`, `experience[0].company`) and formats output JSON, supporting metadata inheritance on nested properties.
-- **Validator (`src/validator/`)**: Dynamically compiles a Zod schema matching the active projection configuration. Ensures required fields are present and handles validation errors gracefully.
+- **Projection (`src/projection/`)**: Formats output into a **strictly flattened JSON schema**, extracting primitives directly from the data without deep nested metadata wrappers.
+- **Validator (`src/validator/`)**: Dynamically compiles a Zod schema matching the flat primitive configuration. Ensures required fields are present and handles validation errors gracefully.
 
 ---
 
@@ -41,6 +47,7 @@ This system is built following **Clean Architecture** and **SOLID principles**. 
 - **Framework**: Express.js
 - **Ingestion & Parsing**: `pdf-parse`, `csv-parser`, `multer`
 - **Validation**: `zod`, `libphonenumber-js`
+- **Frontend**: Vanilla HTML5/CSS3/JS, Custom Dark Theme
 - **Testing**: `Jest`, `supertest`
 
 ---
@@ -59,76 +66,54 @@ This system is built following **Clean Architecture** and **SOLID principles**. 
    ```bash
    npm test
    ```
-
----
-
-## CLI Usage
-
-The system exposes a CLI tool (`src/cli.js`) to process local files.
-
-```bash
-node src/cli.js <paths_to_files...> [options]
-```
-
-### Options
-- `-c, --config <path>`: Custom schema projection configuration (defaults to `./config.json`).
-- `-o, --output <path>`: Write the resulting JSON to a file (prints to stdout by default).
-- `--no-audit`: Exclude the provenance audit trail.
-
-### Example
-```bash
-node src/cli.js ./tests/mock_resume.txt ./tests/mock_ats.json -o ./output/profile.json
-```
+4. Start the Application:
+   ```bash
+   npm start
+   ```
+5. Navigate to **http://localhost:3000** to use the Drag-and-Drop Interface!
 
 ---
 
 ## REST API Documentation
 
-Start the Express API server:
-```bash
-npm start
-```
-The server will run on port `3000` (or the `PORT` env variable if configured).
+The server runs on port `3000`.
 
-### 1. Health Check
-- **Endpoint**: `GET /health`
-- **Response**: `200 OK`
-  ```json
-  {
-    "status": "UP",
-    "timestamp": "2026-06-30T13:42:00.000Z"
-  }
-  ```
-
-### 2. Transform Candidates
+### 1. Transform Candidates
 - **Endpoint**: `POST /api/candidates/transform`
 - **Content-Type**: `multipart/form-data`
 - **Fields**:
   - `files`: Upload one or more source candidate files (PDF, CSV, JSON, TXT).
-  - `config` *(optional)*: A stringified JSON string containing custom projection mappings.
 - **Response**: `200 OK` (Or `422 Unprocessable Entity` on schema validation failure)
   ```json
   {
     "success": true,
     "data": {
-      "full_name": {
-        "value": "Alice Smith",
-        "confidence": 0.67,
-        "provenance": { "source": "resume.txt", "method": "HEURISTIC_EXTRACT" }
-      },
-      "primary_email": {
-        "value": "alice.smith@example.com",
-        "confidence": 0.86,
-        "provenance": { "source": "resume.txt", "method": "REGEX_MATCH" }
-      }
+      "full_name": "Nikk Attry",
+      "emails": [
+        "nikk@gmail.com",
+        "nikk.attry@gmail.com"
+      ],
+      "phones": [
+        "+919876543210"
+      ],
+      "skills": [
+        "JavaScript",
+        "React",
+        "Node.js",
+        "MongoDB",
+        "Python",
+        "C++"
+      ],
+      "headline": "Software Engineer Intern",
+      "github": "https://github.com/nikkattry",
+      "overall_confidence": 0.93
     },
     "provenance_audit": [
       {
         "field": "name",
-        "value": "Alice Smith",
-        "source": "resume.txt",
+        "source": "resume.pdf",
         "method": "HEURISTIC_EXTRACT",
-        "confidence": 0.67
+        "confidence": 0.95
       }
     ]
   }
@@ -139,7 +124,7 @@ The server will run on port `3000` (or the `PORT` env variable if configured).
 ## Merging & Deduplication Details
 
 1. **Deterministic Resolution**:
-   If conflicting single-value fields exist (like two different candidate names), the system chooses the name from the highest priority file currently uploaded. If the field is empty in the top-priority file, it inspects the second-priority source, ensuring no data is dropped.
+   If conflicting single-value fields exist, the system chooses the data from the highest priority file currently uploaded. 
 2. **Corporate Suffix Stripping**:
    During experience deduplication, company strings like "Google" and "Google Inc." are equated by removing standard suffixes (`inc`, `corp`, `ltd`, etc.) and stripping formatting, avoiding redundant list items.
 3. **Floating Point Rounding**:
