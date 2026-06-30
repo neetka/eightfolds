@@ -1,3 +1,4 @@
+
 const fs = require('fs').promises;
 const BaseParser = require('./BaseParser');
 
@@ -11,7 +12,7 @@ class TxtParser extends BaseParser {
   async parse(source, sourceName) {
     try {
       let rawString;
-      
+
       if (Buffer.isBuffer(source)) {
         rawString = source.toString('utf8');
       } else if (typeof source === 'string') {
@@ -19,7 +20,7 @@ class TxtParser extends BaseParser {
       } else {
         throw new Error('Source must be an absolute path string or a Buffer.');
       }
-      
+
       return {
         sourceType: 'RECRUITER_NOTES',
         sourceName,
